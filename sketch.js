@@ -7,6 +7,7 @@ let mode = 1;
 //mode = 1 corresponds to the landing screen.
 //mode = 2 corresponds to the actual game.
 //mode = 3 corresponds to the animation with rising water when a wrong key is pressed.
+//mode = 3 corresponds to the animation with dancing monkeys when a correct key is pressed.
 let words = []; //to store all words from the txt file.
 let word; //to store the selected random word.
 let spriteSheet; //spritesheet image of a dancing monkey.
@@ -21,6 +22,8 @@ let nameOfPlayer; //to store the name entered in the welcome screen
 let heightOfWater;
 let prevHeight;
 let wordChars = [];
+let selectedCorrectedChars = [];
+let wrongAttempts = [];
 let charHeight;
 const maxHeight = 80;
 const waterHeights = [
@@ -32,7 +35,8 @@ const waterHeights = [
     290,
     380
 ];
-let wrongAttempts = [];
+// let wrongAttempts = [];
+let instancesOfLetter;
 
 let dx = 0.02;
 let inc = 0.002;
@@ -70,33 +74,33 @@ function draw() {
     } else {
         drawGround();
         if (mode === 1.5) { //mode 1.5 is animation of character into the scene.
-            image(charImgs[0], width / 2 + 100, charHeight, 350, 340); //draw character image
-            charHeight += 4; //animate him coming down
-            if (charHeight >= 245) {
-                mode = 2;
-            }
-            if (heightOfWater <= waterHeights[0]) //make sure water level is correct
-                heightOfWater += 0.5;
-            else
-                heightOfWater = waterHeights[0];
+            splashScreen();
         } else {
             drawGameCharacter();
             if (mode === 2) { //mode 2 is the actual game 
             }
             if (mode === 3) { //mode 3 is when the player enters a wrong letter, so the water rises till next level
-                animateRisingWater();
                 fill(0);
-                text('WRONG!\nOnly ' + (waterHeights.length - wrongAttempts.length - 1) + ' attempts left!', width / 2, 50);        
+                text('WRONG!\nOnly ' + (waterHeights.length - wrongAttempts.length - 1) + ' attempts left!', width / 2, 50);
+                animateRisingWater();
             }
             if (mode === 4) { //mode 4 is when the player enters a right letter, so two monkeys dance 
                 fill(0);
-                text('CORRECT!', width / 2, 50);
-                monkeysDance(); //a 2s long animation of two monkey dancing when you enter a correct letter
+                text('CORRECT!\nGood work ' + nameOfPlayer, width / 2, 50);
+                monkeysDance(); //a short animation of two monkey dancing when you enter a correct letter
             }
         }
         drawWater();
+        drawWord();
     }
 
+}
+
+function keyPressed() {
+    if ((keyCode >= 65 && keyCode <= 90) || (keyCode > 97 && keyCode <= 122)) {
+        if (mode === 2) //key input is relevant only if mode is 2 -- actual game
+            keyEntered(key);
+    }
 }
 
 function initialization() {
@@ -108,6 +112,7 @@ function initialization() {
     charHeight = 0;
     heightOfWater = 0;
     prevHeight = 0;
+    instancesOfLetter = 0;
 
     //initializing the monkey sprite images
     for (let i = 0; i < spriteData.length; i++) {
@@ -121,6 +126,9 @@ function initialization() {
     while (isNotSuitable(word))
         word = random(words);
     wordChars = word.split('');
+    console.log(word);
+    selectedCorrectedChars = [];
+    wrongAttempts = [];
 
     //creating input region
     input = createInput('');
@@ -154,6 +162,18 @@ function drawGround() {
     strokeWeight(1);
     stroke(0);
     line(0, 400, width, 400);
+}
+
+function splashScreen() {
+    image(charImgs[0], width / 2 + 100, charHeight, 350, 340); //draw character image
+    charHeight += 4; //animate him coming down
+    if (charHeight >= 245) {
+        mode = 2;
+    }
+    if (heightOfWater <= waterHeights[0]) //make sure water level is correct
+        heightOfWater += 0.5;
+    else
+        heightOfWater = waterHeights[0];
 }
 
 function drawWater() {
@@ -194,10 +214,56 @@ function animateRisingWater() {
 }
 
 function monkeysDance() {
-    image(monkeyImgs[floor(monkeyIndex)], 45, 250, 100, 100);
-    image(monkeyImgs[floor(monkeyIndex)], 455, 250, 100, 100);
-    monkeyIndex = (monkeyIndex + 0.5) % 15;
-    setTimeout(() => {
-        mode = 2
-    }, 2000);
+    image(monkeyImgs[floor(monkeyIndex % 14)], 45, 250, 100, 100);
+    image(monkeyImgs[floor(monkeyIndex % 14)], 455, 250, 100, 100);
+    monkeyIndex = (monkeyIndex + 0.5);
+    if (monkeyIndex === 30) { // => when monkeys have danced two full times (since 15 images in sheet), stop animation 
+        monkeyIndex = 0;
+        mode = 2;
+    }
+}
+
+function keyEntered(key) {
+    let k = key.toLowerCase();
+    instancesOfLetter = 0;
+    for (let i = 0; i < word.length; i++) {
+        if (word[i] === k) {
+            keyCorrect(i);
+        }
+    }
+    if (instancesOfLetter > 0) {
+        mode = 4;
+    } else {
+        keyIncorrect(key);
+    }
+}
+
+function keyCorrect(i) {
+    selectedCorrectedChars[i] = true;
+    instancesOfLetter++;
+}
+
+function keyIncorrect(c) {
+    if (wrongAttempts.indexOf(c)===-1) {
+        mode = 3;
+        wrongAttempts.push(c);
+    }
+}
+
+function drawWord() {
+    fill(0);
+    noStroke();
+    textSize(20);
+    currentWord = [];
+    for (let i = 0; i < word.length; i++) {
+        if (selectedCorrectedChars[i])
+            currentWord[i] = word[i]
+        else
+            currentWord[i] = '-';
+    }
+    currentWord = currentWord.join('');
+    text(currentWord, width / 2, 450);
+
+    let incorrectLetters = wrongAttempts.join(', ');
+    text(incorrectLetters, width / 2, 480);
 }
